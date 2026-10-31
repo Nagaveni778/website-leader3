@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leaders Search</title>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+<style>
+*{box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
+body{background:#0f1115;color:#fff;margin:0;padding:20px}
+.container{max-width:1100px;margin:auto}
+h1{font-size:28px;margin-bottom:5px}
+.search-box{position:sticky;top:10px;z-index:10;background:#0f1115;padding:10px 0}
+input{width:100%;padding:16px 18px;border-radius:12px;border:1px solid #333;background:#1a1d24;color:#fff;font-size:18px;outline:none}
+input:focus{border-color:#4f7cff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:20px}
+.card{background:#1a1d24;border:1px solid #2a2d35;border-radius:14px;padding:14px;cursor:pointer;transition:.2s}
+.card:hover{border-color:#4f7cff;transform:translateY(-2px)}
+.card h3{margin:0 0 4px 0;font-size:17px}
+.card p{margin:0;color:#9aa0aa;font-size:13px}
+.badge{font-size:11px;background:#2a2d35;padding:3px 8px;border-radius:20px;display:inline-block;margin-top:8px}
+#detail{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;padding:20px;overflow:auto}
+#detail.show{display:flex;align-items:center;justify-content:center}
+.detail-box{background:#1e212a;max-width:600px;width:100%;border-radius:18px;padding:20px;position:relative}
+.detail-box img{width:100%;max-height:300px;object-fit:cover;border-radius:12px;margin-bottom:12px}
+.close{position:absolute;right:15px;top:15px;background:#2a2d35;border:none;color:#fff;font-size:20px;width:35px;height:35px;border-radius:50%;cursor:pointer}
+a.wiki{color:#4f7cff;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Leaders Directory</h1>
+<p style="color:#9aa0aa;margin-top:0">Search 100+ leaders. Spelling mistake allowed.</p>
+<div class="search-box">
+<input id="search" type="text" placeholder="Search e.g. Modi, Gandhiji, Obama, Abdul Kalam...">
+</div>
+<div id="count" style="color:#9aa0aa;margin-top:10px"></div>
+<div class="grid" id="grid"></div>
+</div>
+
+<div id="detail" onclick="if(event.target==this) closeDetail()">
+<div class="detail-box">
+<button class="close" onclick="closeDetail()">✕</button>
+<div id="detailContent">Loading...</div>
+</div>
+</div>
+
+<script>
+// 100+ Leaders List
+const leaders = [
+{name:"Narendra Modi", country:"India", role:"Prime Minister"},
+{name:"Mahatma Gandhi", country:"India", role:"Freedom Leader"},
+{name:"Jawaharlal Nehru", country:"India", role:"First Prime Minister"},
+{name:"Sardar Patel", country:"India", role:"Iron Man of India"},
+{name:"B. R. Ambedkar", country:"India", role:"Constitution Architect"},
+{name:"A. P. J. Abdul Kalam", country:"India", role:"Former President"},
+{name:"Indira Gandhi", country:"India", role:"Former Prime Minister"},
+{name:"Subhash Chandra Bose", country:"India", role:"Freedom Fighter"},
+{name:"Bhagat Singh", country:"India", role:"Revolutionary"},
+{name:"Lal Bahadur Shastri", country:"India", role:"Former Prime Minister"},
+{name:"Atal Bihari Vajpayee", country:"India", role:"Former Prime Minister"},
+{name:"Rahul Gandhi", country:"India", role:"Politician"},
+{name:"Sonia Gandhi", country:"India", role:"Politician"},
+{name:"Yogi Adityanath", country:"India", role:"Chief Minister UP"},
+{name:"Arvind Kejriwal", country:"India", role:"Chief Minister Delhi"},
+{name:"Mamata Banerjee", country:"India", role:"Chief Minister WB"},
+{name:"Barack Obama", country:"USA", role:"Former President"},
+{name:"Joe Biden", country:"USA", role:"President"},
+{name:"Donald Trump", country:"USA", role:"Former President"},
+{name:"George Washington", country:"USA", role:"First President"},
+{name:"Abraham Lincoln", country:"USA", role:"Former President"},
+{name:"Martin Luther King Jr", country:"USA", role:"Civil Rights Leader"},
+{name:"Nelson Mandela", country:"South Africa", role:"Former President"},
+{name:"Vladimir Putin", country:"Russia", role:"President"},
+{name:"Xi Jinping", country:"China", role:"President"},
+{name:"Kim Jong-un", country:"North Korea", role:"Supreme Leader"},
+{name:"Volodymyr Zelenskyy", country:"Ukraine", role:"President"},
+{name:"Winston Churchill", country:"UK", role:"Former Prime Minister"},
+{name:"Rishi Sunak", country:"UK", role:"Former Prime Minister"},
+{name:"Margaret Thatcher", country:"UK", role:"Former Prime Minister"},
+{name:"Queen Elizabeth II", country:"UK", role:"Former Queen"},
+{name:"Emmanuel Macron", country:"France", role:"President"},
+{name:"Angela Merkel", country:"Germany", role:"Former Chancellor"},
+{name:"Justin Trudeau", country:"Canada", role:"Prime Minister"},
+{name:"Fidel Castro", country:"Cuba", role:"Former Leader"},
+{name:"Che Guevara", country:"Argentina", role:"Revolutionary"},
+{name:"Lee Kuan Yew", country:"Singapore", role:"Founding Father"},
+{name:"Mahathir Mohamad", country:"Malaysia", role:"Former PM"},
+{name:"Sheikh Hasina", country:"Bangladesh", role:"Prime Minister"},
+{name:"Imran Khan", country:"Pakistan", role:"Former PM"},
+{name:"Benazir Bhutto", country:"Pakistan", role:"Former PM"},
+{name:"Dalai Lama", country:"Tibet", role:"Spiritual Leader"},
+{name:"Kofi Annan", country:"Ghana", role:"Former UN Secretary"},
+{name:"Ban Ki-moon", country:"South Korea", role:"Former UN Secretary"},
+{name:"Malala Yousafzai", country:"Pakistan", role:"Activist"},
+{name:"Mother Teresa", country:"India", role:"Saint"},
+{name:"Swami Vivekananda", country:"India", role:"Spiritual Leader"},
+{name:"Rabindranath Tagore", country:"India", role:"Poet"},
+{name:"Chhatrapati Shivaji", country:"India", role:"Maratha King"},
+{name:"Rani Lakshmibai", country:"India", role:"Queen of Jhansi"},
+{name:"Tipu Sultan", country:"India", role:"Mysore King"},
+{name:"Lal Bal Pal", country:"India", role:"Freedom Leaders"},
+{name:"Rajendra Prasad", country:"India", role:"First President"},
+{name:"Sarvepalli Radhakrishnan", country:"India", role:"Former President"},
+{name:"Anna Hazare", country:"India", role:"Activist"},
+{name:"Jayalalithaa", country:"India", role:"Former CM Tamil Nadu"},
+{name:"M. Karunanidhi", country:"India", role:"Former CM Tamil Nadu"},
+{name:"Bal Thackeray", country:"India", role:"Shiv Sena Founder"},
+{name:"Jyoti Basu", country:"India", role:"Former CM WB"},
+{name:"M. K. Stalin", country:"India", role:"CM Tamil Nadu"},
+{name:"Pinarayi Vijayan", country:"India", role:"CM Kerala"},
+{name:"N. Chandrababu Naidu", country:"India", role:"CM Andhra"},
+{name:"K. Chandrashekar Rao", country:"India", role:"Former CM Telangana"},
+{name:"Uddhav Thackeray", country:"India", role:"Former CM Maharashtra"},
+{name:"Sharad Pawar", country:"India", role:"Politician"},
+{name:"Lalu Prasad Yadav", country:"India", role:"Politician"},
+{name:"Nitish Kumar", country:"India", role:"CM Bihar"},
+{name:"Mayawati", country:"India", role:"Former CM UP"},
+{name:"Akhilesh Yadav", country:"India", role:"Former CM UP"},
+{name:"Siddaramaiah", country:"India", role:"CM Karnataka"},
+{name:"B. S. Yediyurappa", country:"India", role:"Former CM Karnataka"},
+{name:"Smriti Irani", country:"India", role:"Politician"},
+{name:"Amit Shah", country:"India", role:"Home Minister"},
+{name:"Rajnath Singh", country:"India", role:"Defence Minister"},
+{name:"S. Jaishankar", country:"India", role:"External Affairs Minister"},
+{name:"Manmohan Singh", country:"India", role:"Former Prime Minister"},
+{name:"Pratibha Patil", country:"India", role:"Former President"},
+{name:"Ram Nath Kovind", country:"India", role:"Former President"},
+{name:"Droupadi Murmu", country:"India", role:"President"},
+{name:"Adolf Hitler", country:"Germany", role:"Former Chancellor"},
+{name:"Joseph Stalin", country:"Russia", role:"Former Leader"},
+{name:"Mao Zedong", country:"China", role:"Former Chairman"},
+{name:"Lenin", country:"Russia", role:"Revolutionary"},
+{name:"Karl Marx", country:"Germany", role:"Philosopher"},
+{name:"Napoleon Bonaparte", country:"France", role:"Former Emperor"},
+{name:"Julius Caesar", country:"Rome", role:"Former Emperor"},
+{name:"Alexander the Great", country:"Macedonia", role:"King"},
+{name:"Genghis Khan", country:"Mongolia", role:"Emperor"},
+{name:"Cleopatra", country:"Egypt", role:"Queen"},
+{name:"Joan of Arc", country:"France", role:"Heroine"},
+{name:"Albert Einstein", country:"Germany", role:"Scientist Leader"},
+{name:"Stephen Hawking", country:"UK", role:"Scientist"},
+{name:"Elon Musk", country:"USA", role:"Entrepreneur"},
+{name:"Bill Gates", country:"USA", role:"Entrepreneur"},
+{name:"Steve Jobs", country:"USA", role:"Entrepreneur"},
+{name:"Mark Zuckerberg", country:"USA", role:"Entrepreneur"},
+{name:"Ratan Tata", country:"India", role:"Industrialist"},
+{name:"Mukesh Ambani", country:"India", role:"Industrialist"},
+{name:"Sachin Tendulkar", country:"India", role:"Cricketer Leader"},
+{name:"Virat Kohli", country:"India", role:"Cricketer"},
+{name:"M S Dhoni", country:"India", role:"Cricketer"},
+{name:"Pelé", country:"Brazil", role:"Football Legend"},
+{name:"Lionel Messi", country:"Argentina", role:"Footballer"},
+{name:"Cristiano Ronaldo", country:"Portugal", role:"Footballer"},
+{name:"Osama bin Laden", country:"Saudi Arabia", role:"Terrorist Leader"},
+{name:"Saddam Hussein", country:"Iraq", role:"Former President"},
+{name:"Muammar Gaddafi", country:"Libya", role:"Former Leader"}
+];
+
+// Fuse.js for spelling mistake handling
+const fuse = new Fuse(leaders, {
+  keys: ['name', 'country', 'role'],
+  threshold: 0.4, // 0=exact, 1=anything. 0.4 allows spelling mistakes
+  distance: 100,
+  includeScore: true
+});
+
+const grid = document.getElementById('grid');
+const count = document.getElementById('count');
+const searchInput = document.getElementById('search');
+
+function render(list){
+  count.innerText = `${list.length} leaders found`;
+  grid.innerHTML = list.map(l => `
+    <div class="card" onclick="openDetail('${l.name.replace(/'/g,"\\'")}')">
+      <h3>${l.name}</h3>
+      <p>${l.role} • ${l.country}</p>
+      <span class="badge">View Wikipedia</span>
+    </div>
+  `).join('');
+}
+
+render(leaders);
+
+searchInput.addEventListener('input', (e)=>{
+  const q = e.target.value.trim();
+  if(!q){ render(leaders); return; }
+  const results = fuse.search(q).map(r=>r.item);
+  render(results);
+});
+
+async function openDetail(name){
+  document.getElementById('detail').classList.add('show');
+  document.getElementById('detailContent').innerHTML = `<p>Loading Wikipedia for ${name}...</p>`;
+  
+  try{
+    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    document.getElementById('detailContent').innerHTML = `
+      ${data.thumbnail ? `<img src="${data.thumbnail.source}" />` : ''}
+      <h2>${data.title || name}</h2>
+      <p style="color:#cbd0d8;line-height:1.6">${data.extract || 'No summary found.'}</p>
+      <p style="margin-top:15px"><a class="wiki" href="${data.content_urls?.desktop?.page || 'https://en.wikipedia.org/wiki/'+encodeURIComponent(name)}" target="_blank">→ Read full on Wikipedia</a></p>
+      <div style="margin-top:15px">
+        <small style="color:#9aa0aa">If Wikipedia page not found, it will auto search: <a class="wiki" href="https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(name)}" target="_blank">Search "${name}"</a></small>
+      </div>
+    `;
+  }catch(e){
+    document.getElementById('detailContent').innerHTML = `
+      <h2>${name}</h2>
+      <p>Could not load Wikipedia. <a class="wiki" href="https://en.wikipedia.org/wiki/${encodeURIComponent(name)}" target="_blank">Open Wikipedia</a></p>
+    `;
+  }
+}
+function closeDetail(){ document.getElementById('detail').classList.remove('show'); }
+</script>
+</body>
+</html>
